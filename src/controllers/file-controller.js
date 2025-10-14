@@ -270,7 +270,7 @@ exports.getAllData = async (req, res) => {
         const { q, page = 1, limit = 20 } = req.query;
         const filter = {};
 
-        if (q) {
+        if (!isNaN(q)) {
             const queryRegex = new RegExp(q, "i");
             filter.$or = [
                 // top-level
