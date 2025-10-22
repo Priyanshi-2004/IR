@@ -267,7 +267,7 @@ exports.uploadXML = async (req, res) => {
 
 exports.getAllData = async (req, res) => {
     try {
-        const { q, page = 1, limit = 20 } = req.query;
+        const { q } = req.query;
         const filter = {};
 
         if (!isNaN(q)) {
@@ -338,16 +338,12 @@ exports.getAllData = async (req, res) => {
 
         const results = await FileData.find(filter)
             .collation({ locale: "en", strength: 2 })
-            .limit(Number(limit))
-            .skip((Number(page) - 1) * Number(limit))
-            .sort({ fileName: 1 });
+            .sort({ organisationName: 1 }); 
 
-        const count = await FileData.countDocuments(filter);
+              const count = results.length;
 
-        res.json({
+    res.json({
             results,
-            totalPages: Math.ceil(count / limit),
-            currentPage: parseInt(page),
             totalCount: count,
         });
     } catch (err) {
@@ -355,6 +351,7 @@ exports.getAllData = async (req, res) => {
         res.status(500).json({ error: "Failed to fetch data" });
     }
 };
+
 
 
 exports.getDataById = async (req, res) => {
