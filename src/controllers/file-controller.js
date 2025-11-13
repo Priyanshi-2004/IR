@@ -37,10 +37,12 @@ exports.uploadXML = async (req, res) => {
         const header = json?.RAEXIR21FileHeader?.[0] || {};
         const org = json?.OrganisationInfo?.[0] || {};
 
-        const primaryTADIGCode = org?.TADIGSummaryList?.[0]?.TADIGSummaryItem?.[0]?.TADIGCode?.[0];
+        const primaryTADIGCode = org?.TADIGSummaryList?.[0]?.TADIGSummaryItem?.[0]?.TADIGCode?.[0] ||
+            org?.NetworkList?.[0]?.Network?.[0]?.TADIGCode?.[0];;
         const organisationName = org?.OrganisationName?.[0];
         const existingFile = await FileData.findOne({
             "tadigSummaryList.TADIGCode": primaryTADIGCode
+
         });
 
         if (existingFile) {
@@ -79,14 +81,25 @@ exports.uploadXML = async (req, res) => {
             CC: rawE214.MGT_CC?.[0] || null,
             NC: rawE214.MGT_NC?.[0] || null,
         };
-
-        const tadigSummaryList = normalizeArray(org?.TADIGSummaryList?.[0]?.TADIGSummaryItem).map(item => ({
-            TADIGCode: item.TADIGCode?.[0],
-            MCC: item.NetworkProperties?.[0]?.MCC?.[0],
-            MNC: item.NetworkProperties?.[0]?.MNC?.[0],
-            NetworkType: item.NetworkProperties?.[0]?.NetworkType?.[0],
-            VPMNHPMNList: normalizeArray(item.NetworkProperties?.[0]?.VPMNHPMNList?.[0]?.VPMNHPMN).join(', '),
-        }));
+        let tadigSummaryList = [];
+        if (org?.TADIGSummaryList?.[0]?.TADIGSummaryItem) {
+            tadigSummaryList = normalizeArray(org?.TADIGSummaryList?.[0]?.TADIGSummaryItem).map(item => ({
+                TADIGCode: item.TADIGCode?.[0],
+                MCC: item.NetworkProperties?.[0]?.MCC?.[0],
+                MNC: item.NetworkProperties?.[0]?.MNC?.[0],
+                NetworkType: item.NetworkProperties?.[0]?.NetworkType?.[0],
+                VPMNHPMNList: normalizeArray(item.NetworkProperties?.[0]?.VPMNHPMNList?.[0]?.VPMNHPMN).join(', '),
+            }));
+        }
+        else if (org?.NetworkList?.[0]?.Network) {
+            tadigSummaryList = normalizeArray(org?.NetworkList?.[0]?.Network).map(network => ({
+                TADIGCode: network.TADIGCode?.[0],
+                MCC: network.NetworkData?.[0]?.RoutingInfoSection?.[0]?.RoutingInfo?.[0]?.CCITT_E212_NumberSeries?.[0]?.MCC?.[0],
+                MNC: network.NetworkData?.[0]?.RoutingInfoSection?.[0]?.RoutingInfo?.[0]?.CCITT_E212_NumberSeries?.[0]?.MNC?.[0],
+                NetworkType: network.NetworkType?.[0],
+                NetworkName: network.NetworkName?.[0],
+            }));
+        }
 
         const msisdnNumberRanges = normalizeArray(numberingPlan?.MSISDN_NumberRanges?.[0]?.RangeData).map(range => ({
             CC: range.NumberRange?.[0]?.CC?.[0],
@@ -155,10 +168,25 @@ exports.uploadXML = async (req, res) => {
             })),
         };
 
-        const asnInfo = normalizeArray(grxIpxInfo?.ASNsList?.[0]?.ASNItem).map(item => ({
-            asNumber: item.ASN?.[0],
-            operator: item.NetworkOwner?.[0],
-        }));
+       let asnInfo = [];
+
+// Case 1: Standard structure (GRXIPXRoutingForDataRoamingSection)
+if (grxIpxInfo?.ASNsList?.[0]?.ASNItem) {
+    asnInfo = normalizeArray(grxIpxInfo?.ASNsList?.[0]?.ASNItem).map(item => ({
+        asNumber: item.ASN?.[0],
+        operator: item.NetworkOwner?.[0],
+    }));
+}
+
+// Case 2: Simpler structure (IPRoaming_IW_InfoSection → ASNsList → ASN)
+else if (networkData?.IPRoaming_IW_InfoSection?.[0]?.IPRoaming_IW_Info_General?.[0]?.ASNsList?.[0]?.ASN) {
+    asnInfo = normalizeArray(
+        networkData.IPRoaming_IW_InfoSection[0].IPRoaming_IW_Info_General[0].ASNsList[0].ASN
+    ).map(asn => ({
+        asNumber: asn,
+        operator: null, // optional — no operator info in this format
+    }));
+}
 
         const authoritativeDNS = normalizeArray(grxIpxInfo?.PMNAuthoritativeDNSIPList?.[0]?.DNSitem)
             .map(item => ({
@@ -264,10 +292,9 @@ exports.uploadXML = async (req, res) => {
     }
 };
 
-
 exports.getAllData = async (req, res) => {
     try {
-        const { q } = req.query;
+        const { q, page = 1, limit = 20 } = req.query;
         const filter = {};
 
         if (!isNaN(q)) {
@@ -338,12 +365,16 @@ exports.getAllData = async (req, res) => {
 
         const results = await FileData.find(filter)
             .collation({ locale: "en", strength: 2 })
-            .sort({ organisationName: 1 }); 
+            .limit(Number(limit))
+            .skip((Number(page) - 1) * Number(limit))
+            .sort({ fileName: 1 });
 
-              const count = results.length;
+        const count = await FileData.countDocuments(filter);
 
-    res.json({
+        res.json({
             results,
+            totalPages: Math.ceil(count / limit),
+            currentPage: parseInt(page),
             totalCount: count,
         });
     } catch (err) {
