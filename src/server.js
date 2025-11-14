@@ -17,6 +17,7 @@ app.use("/api/file", fileRoutes);
 
 const MISP_URL = process.env.MISP_URL;
 const MISP_KEY = process.env.MISP_KEY;
+console.log("MISP_KEY:", MISP_KEY);
 // Shared axios config
 const axiosConfig = {
   headers: {
@@ -25,6 +26,7 @@ const axiosConfig = {
   },
   timeout: 15000
 };
+console.log("Misp_key:", MISP_KEY);
 
 // -------------------- EVENTS --------------------
 
