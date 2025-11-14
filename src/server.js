@@ -17,7 +17,7 @@ app.use("/api/file", fileRoutes);
 
 const MISP_URL = process.env.MISP_URL;
 const MISP_KEY = process.env.MISP_KEY;
-console.log("MISP_KEY:", MISP_KEY);
+// console.log("MISP_KEY:", MISP_KEY);
 // Shared axios config
 const axiosConfig = {
   headers: {
@@ -26,7 +26,7 @@ const axiosConfig = {
   },
   timeout: 15000
 };
-console.log("Misp_key:", MISP_KEY);
+// console.log("Misp_key:", MISP_KEY);
 
 // -------------------- EVENTS --------------------
 
@@ -34,7 +34,6 @@ console.log("Misp_key:", MISP_KEY);
 app.get('/api/events', async (req, res) => {
   const page = parseInt(req.query.page || '1', 10);
   const limit = parseInt(req.query.limit || '10', 10);
-  console.log(MISP_KEY, "hello")
   try {
     const response = await axios.post(
       `${MISP_URL}/events/restSearch`,
