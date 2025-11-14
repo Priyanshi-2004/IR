@@ -294,7 +294,7 @@ else if (networkData?.IPRoaming_IW_InfoSection?.[0]?.IPRoaming_IW_Info_General?.
 
 exports.getAllData = async (req, res) => {
     try {
-        const { q, page = 1, limit } = req.query; 
+        const { q, page = 1, limit } = req.query; pos
         const filter = {};
 
         if (!isNaN(q)) {
