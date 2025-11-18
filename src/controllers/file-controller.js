@@ -294,10 +294,10 @@ else if (networkData?.IPRoaming_IW_InfoSection?.[0]?.IPRoaming_IW_Info_General?.
 
 exports.getAllData = async (req, res) => {
     try {
-        const { q, page = 1, limit } = req.query;
+        const { q, page = 1, limit = 20 } = req.query;
         const filter = {};
 
-        if (!isNaN(q)) {
+        if ((q)) {
             const queryRegex = new RegExp(q, "i");
             filter.$or = [
                 // top-level
